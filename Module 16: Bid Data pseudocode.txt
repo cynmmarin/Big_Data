@@ -1,0 +1,867 @@
+-----------------------------
+# 16.2.2 mrjob Library
+
+# Install mrjob in our Python environment
+$ pip install MRJob
+
+# Add Code to text Editor save file as bacon_counter.py
+
+# Enter the following code to import mrjob
+from mrjob.job import MRJob
+
+# Create a class called Bacon_count, which inherits, or takes properties, from the MRJob class
+class Bacon_count(MRJob):
+
+# Create a mapper()function that will take (self, _, line) as parameters
+    def mapper(self, _, line):
+
+# The line parameter will be the line of text taken from the raw input file
+        for word in line.split():
+            if word.lower() == "bacon":
+                yield "bacon", 1
+
+# Reducer function takes three parameters: self, key, and values
+    def reducer(self, key, values):
+        yield key, sum(values)
+
+# Code for running the program:
+if __name__ == "__main__":
+   Bacon_count.run()
+
+# Download on same folder input.text file with words
+
+# Run code on terminal to get output
+$ python bacon_counter.py input.txt
+
+
+-----------------------------
+16.4.1 PySpark in Google Colab Notebook
+
+# Install packages for libraries we want to use in Google Colab's new Notebook
+import os
+# Find the latest version of spark 3.0  from http://www-us.apache.org/dist/spark/ and enter as the spark version
+# For example:
+# spark_version = 'spark-3.0.2'
+spark_version = 'spark-3.1.2'
+os.environ['SPARK_VERSION']=spark_version
+
+# Install Spark and Java
+!apt-get update
+!apt-get install openjdk-11-jdk-headless -qq > /dev/null
+!wget -q http://www-us.apache.org/dist/spark/$SPARK_VERSION/$SPARK_VERSION-bin-hadoop2.7.tgz
+!tar xf $SPARK_VERSION-bin-hadoop2.7.tgz
+!pip install -q findspark
+
+# Set Environment Variables
+import os
+os.environ["JAVA_HOME"] = "/usr/lib/jvm/java-11-openjdk-amd64"
+os.environ["SPARK_HOME"] = f"/content/{spark_version}-bin-hadoop2.7"
+
+# Start a SparkSession
+import findspark
+findspark.init()
+
+
+-------------------------------
+16.4.2 Spark DataFrames and Datasets
+
+# Create a Spark session by importing the library and setting the spark variable to the code
+# Start Spark session
+from pyspark.sql import SparkSession
+spark = SparkSession.builder.appName("DataFrameBasics").getOrCreate()
+
+# Spark enables us to create a DataFrame from scratch by passing in a list of tuples to the createDataFrame method followed by a list of the column names. 
+dataframe = spark.createDataFrame([
+(0, "Here is our DataFrame"),
+(1, "We are making one from scratch"),
+(2, "This will look very similar to Pandas DataFrame")
+], ["id", "words"])
+dataframe.show()
+
+# Read in data from S3 Buckets
+from pyspark import SparkFiles
+url = "https://s3.amazonaws.com/dataviz-curriculum/day_1/food.csv"
+spark.sparkContext.addFile(url)
+df = spark.read.csv(SparkFiles.get("food.csv"), sep=",", header=True)
+df.show()
+
+# Print our schema
+df.printSchema()
+
+# Show the columns
+df.columns
+
+# Describe our data
+df.describe()
+
+# Import struct fields that we can use
+from pyspark.sql.types import StructField, StringType, IntegerType, StructType
+
+# Next we need to create the list of struct fields
+schema = [StructField("food", StringType(), True), StructField("price", IntegerType(), True),]
+schema
+
+# Pass in our fields
+final = StructType(fields=schema)
+final
+
+# Read our data with our new schema
+dataframe = spark.read.csv(SparkFiles.get("food.csv"), schema=final, sep=",", header=True)
+dataframe.printSchema()
+
+# Access our data with Spark
+# 1st Way
+dataframe['price']
+
+# 2nd Way
+type(dataframe['price'])
+
+# 3rd Way
+dataframe.select('price')
+
+# 4th Way
+type(dataframe.select('price'))
+
+# 5th Way
+dataframe.select('price').show()
+
+# Manipulate columns in Spark
+# Add new column
+dataframe.withColumn('newprice', dataframe['price']).show()
+
+# Update column name
+dataframe.withColumnRenamed('price','newerprice').show()
+
+# Double the price
+dataframe.withColumn('doubleprice',dataframe['price']*2).show()
+
+# Add a dollar to the price
+dataframe.withColumn('add_one_dollar',dataframe['price']+1).show()
+
+# Half the price
+dataframe.withColumn('half_price',dataframe['price']/2).show()
+
+-----------------------
+16.4.3 Spark Functions
+
+# Import Os
+import os
+
+# Find the latest version of spark 3.0  from http://www-us.apache.org/dist/spark/ and enter as the spark version
+
+# For example:
+# spark_version = 'spark-3.0.2'
+spark_version = 'spark-3.1.2'
+os.environ['SPARK_VERSION']=spark_version
+
+# Install Spark and Java
+!apt-get update
+!apt-get install openjdk-11-jdk-headless -qq > /dev/null
+!wget -q http://www-us.apache.org/dist/spark/$SPARK_VERSION/$SPARK_VERSION-bin-hadoop2.7.tgz
+!tar xf $SPARK_VERSION-bin-hadoop2.7.tgz
+!pip install -q findspark
+
+# Set Environment Variables
+import os
+os.environ["JAVA_HOME"] = "/usr/lib/jvm/java-11-openjdk-amd64"
+os.environ["SPARK_HOME"] = f"/content/{spark_version}-bin-hadoop2.7"
+
+# Start a SparkSession
+import findspark
+findspark.init()
+
+# Start Spark session
+from pyspark.sql import SparkSession
+spark = SparkSession.builder.appName("DataFrameFunctions").getOrCreate()
+
+# Read in data from S3 Buckets
+from pyspark import SparkFiles
+url ="https://s3.amazonaws.com/dataviz-curriculum/day_1/wine.csv"
+spark.sparkContext.addFile(url)
+df = spark.read.csv(SparkFiles.get("wine.csv"), sep=",", header=True)
+
+# Show DataFrame
+df.show()
+
+## Transformations
+# Transformations are the instructions for the computation
+# Order a DataFrame by decending values
+df.orderBy(df["points"].desc()
+
+## Actions
+# Actions direct Spark to perform the computation instructions and return a result
+# Order a DataFrame by ascending values (using SQL)
+df.orderBy(df["points"].desc()).show(5)
+
+## More Functions (using SQL)
+# Import additional functions, such as averages
+from pyspark.sql.functions import avg
+df.select(avg("points")).show()
+
+# Filter (using SQL)
+df.filter("price<20").show(5)
+
+# Filter by price on certain columns (using SQL)
+df.filter("price<20").select(['points','country','winery','price']).show(5)
+
+# Filter (using Python)
+df.filter("price<20").show(5)
+
+# Filter by price on certain columns (using Python)
+df.filter("price<20").select(['points','country', 'winery','price']).show(5)
+
+# Filter on exact state (using Python)
+df.filter(df["country"] == "US").show()
+
+---------------------------
+16.5.3 NLP Core Concepts
+
+## Tokenization
+# Tokenization is the concept of splitting a document or sentence into small subsets of data that can be analyzed
+# Original sentence: I am enjoying learning about NLP.
+# Tokenized by word: ['I', 'am', 'enjoying', 'learning', 'about', 'NLP', '.']
+
+## Normalization 
+# Normalization is the concept of taking misspelled words and converting them into their original form
+# Two concepts practices are: Stemming removes the suffix from a word and reduces it to its original form. AND Lemmatization removes the suffix from a word and reduces it to its original form.
+
+# Activate your environment
+$pip install nltk
+
+# Install NLTK
+
+# Install additional NLTK tools
+python -m nltk.downloader popular
+
+# Create a new Python file. You can add this code to get the PoS tags for the text you provide
+import nltk
+from nltk import word_tokenize
+text = word_tokenize("I enjoy biking on the trails")
+output = nltk.pos_tag(text)
+print(output)
+
+## Natural Language Generation
+# Natural language generation is a field in NLP that entails writing code in such a way that it will generate new text
+
+## Bag-of-Words
+# We can count these words and create models based on how frequently they appear.
+
+## n-gram
+# A sequence of items from a given text: 
+# Unigram is an n-gram of size 1.
+# Bigram is an n-gram of size 2.
+# Trigram is an n-gram of size 3.
+
+# Text Similarity
+# Text similarity determines document or sentence similarity
+
+---------------------
+16.5.4 NLP Use Cases
+
+## NLP Analyses
+# There are three types of NLP analyses:
+
+# Syntactic 
+# Analysis is essentially checking the dictionary definition of each element of a sentence or document.
+
+# Sentiment 
+# Analysis pertains to what the text means. Is it positive, negative, or neutral?
+
+# Semantic
+# Analysis entails extracting the meaning of the text. You
+
+## Named-Entity Recognition (NER)
+# In NLP, named-entity recognition (NER) is the concept of taking a document and finding all of the important terms therein.
+
+---------------------
+16.5.5 NLP Pipeline
+
+## NLP Pipeline
+# Here's a breakdown of each step: 
+# Raw Tex > Tokenization > Stop Words Filtering > TF-IDF > Machine Learning
+
+# Raw Text 
+# Start with the raw data.
+
+# Tokenization
+# Separate the words from paragraphs, to sentences, to individual words.
+
+# Stop Words Filtering 
+# Remove common words like "a" and "the" that add no real value to what we are looking to analyze.
+
+# Term Frequency-Inverse Document Frequency (TF-IDF)
+# Statistically rank the words by importance compared to the rest of the words in the text. This is also when the words are converted from text to numbers.
+
+# Machine Learning
+# Put everything together and run through the machine learning model to produce an output.
+
+----------------------
+16.6.1 Tokenize Data
+# Create new notebook
+
+import os
+# Find the latest version of spark 3.0  from http://www-us.apache.org/dist/spark/ and enter as the spark version
+# For example:
+# spark_version = 'spark-3.0.2'
+spark_version = 'spark-3.<enter version>'
+os.environ['SPARK_VERSION']=spark_version
+
+# Install Spark and Java
+!apt-get update
+!apt-get install openjdk-11-jdk-headless -qq > /dev/null
+!wget -q http://www-us.apache.org/dist/spark/$SPARK_VERSION/$SPARK_VERSION-bin-hadoop2.7.tgz
+!tar xf $SPARK_VERSION-bin-hadoop2.7.tgz
+!pip install -q findspark
+
+# Set Environment Variables
+import os
+os.environ["JAVA_HOME"] = "/usr/lib/jvm/java-11-openjdk-amd64"
+os.environ["SPARK_HOME"] = f"/content/{spark_version}-bin-hadoop2.7"
+
+# Start a SparkSession
+import findspark
+findspark.init()
+
+# Start Spark session
+from pyspark.sql import SparkSession
+spark = SparkSession.builder.appName("Tokens").getOrCreate()
+
+# Import the Tokenizer library.
+from pyspark.ml.feature import Tokenizer
+
+# Create sample Dataframe
+dataframe = spark.createDataFrame([
+(0, "Spark is great"),
+(1, "We are learning Spark"),
+(2, "Spark is better than hadoop no doubt")
+
+], ["id","sentence"])
+dataframe.show()
+
+# Tokenize sentences
+tokenizer = Tokenizer(inputCol="sentence", outputCol="words")
+tokenizer
+
+# Transform and show DataFrame
+tokenized_df = tokenizer.transform(dataframe)
+tokenized_df.show(truncate=False)
+
+## User-defined functions (UDFs) 
+# Are functions created by the user to add custom output columns
+
+# Create a function to return the length of a list
+def word_list_length(word_list):
+    return len(word_list)
+
+# Import the udf function, the col function to select a column to be passed into a function, and the type IntegerType that will be used in our udf to define the data type of the output
+from pyspark.sql.functions import col, udf
+from pyspark.sql.types import IntegerType
+
+# Create a user defined function
+count_tokens = udf(word_list_length, IntegerType())
+
+# Create our Tokenizer
+tokenizer = Tokenizer(inputCol="sentence", outputCol="words")
+
+# Transform DataFrame
+tokenizer_df = tokenizer.transform(dataframe)
+
+# Select the needed columns and don't truncate results
+tokenized_df.withColumn("tokens", count_tokens(col("words"))).show(truncate=False)
+
+-------------------
+16.6.2 Stop Words
+
+## Stop words
+# Are words that have little or no linguistic value in NLP.
+
+# Create new notebook
+# import os
+# Find the latest version of spark 3.0  from http://www-us.apache.org/dist/spark/ and enter as the spark version
+# For example:
+# spark_version = 'spark-3.0.2'
+spark_version = 'spark-3.1.2'
+os.environ['SPARK_VERSION']=spark_version
+
+# Install Spark and Java
+!apt-get update
+!apt-get install openjdk-11-jdk-headless -qq > /dev/null
+!wget -q http://www-us.apache.org/dist/spark/$SPARK_VERSION/$SPARK_VERSION-bin-hadoop2.7.tgz
+!tar xf $SPARK_VERSION-bin-hadoop2.7.tgz
+!pip install -q findspark
+
+# Set Environment Variables
+import os
+os.environ["JAVA_HOME"] = "/usr/lib/jvm/java-11-openjdk-amd64"
+os.environ["SPARK_HOME"] = f"/content/{spark_version}-bin-hadoop2.7"
+
+# Start a SparkSession
+import findspark
+findspark.init()
+
+# Start Spark session
+from pyspark.sql import SparkSession
+spark = SparkSession.builder.appName("StopWords").getOrCreate()
+
+# Create Dataframe
+sentenceData = spark.createDataFrame([
+(0, ["Big","data","is","super","powerful"]),
+(1, ["This","is","going","to","be","epic"])
+
+], ["id","raw"])
+sentenceData.show(truncate=False)
+
+# Import stop words library
+from pyspark.ml.feature import StopWordsRemover
+
+# Run the Remover
+remover = StopWordsRemover(inputCol="raw", outputCol="filtered")
+
+# Transform and show data
+remover.transform(sentenceData).show(truncate=False)
+
+
+------------------------------------------------------------------
+16.6.3 Terms Frequency-Inverse Document Frequency Weight (TF-IDF)
+
+##TF-IDF
+# A statistical weight showing the importance of a word in a document. Term frequency (TF) measures the frequency of a word occurring in a document, and inverse document frequency (IDF) measures the significance of a word across a set of documents.
+
+# TF-IDF convert all the text to a numerical format:
+
+# CountVectorizer
+# Indexes the words across all the documents and returns a vector of word counts corresponding to the indexes. The indexes are assigned in descending order of frequency
+
+# HashingTF
+# Converts words to numeric IDs. The same words are assigned the same IDs and then mapped to an index and counted, and a vector is returned
+
+# HashingTF Method:
+
+# Create new notebook
+import os
+# Find the latest version of spark 3.0  from http://www-us.apache.org/dist/spark/ and enter as the spark version
+# For example:
+# spark_version = 'spark-3.0.2'
+spark_version = 'spark-3.1.2'
+os.environ['SPARK_VERSION']=spark_version
+
+# Install Spark and Java
+!apt-get update
+!apt-get install openjdk-11-jdk-headless -qq > /dev/null
+!wget -q http://www-us.apache.org/dist/spark/$SPARK_VERSION/$SPARK_VERSION-bin-hadoop2.7.tgz
+!tar xf $SPARK_VERSION-bin-hadoop2.7.tgz
+!pip install -q findspark
+
+# Set Environment Variables
+import os
+os.environ["JAVA_HOME"] = "/usr/lib/jvm/java-11-openjdk-amd64"
+os.environ["SPARK_HOME"] = f"/content/{spark_version}-bin-hadoop2.7"
+
+# Start a SparkSession
+import findspark
+findspark.init()
+
+# Start Spark session
+from pyspark.sql import SparkSession
+spark = SparkSession.builder.appName("TF-IDF").getOrCreate()
+
+# Import libraries 
+from pyspark.ml.feature import HashingTF, IDF, Tokenizer, StopWordsRemover
+
+# Read in data from S3 Buckets
+from pyspark import SparkFiles
+url ="https://s3.amazonaws.com/dataviz-curriculum/day_2/airlines.csv"
+spark.sparkContext.addFile(url)
+df = spark.read.csv(SparkFiles.get("airlines.csv"), sep=",", header=True)
+
+# Show DataFrame
+df.show()
+
+# Tokenize DataFrame
+tokened = Tokenizer(inputCol="Airline Tweets", outputCol="words")
+tokened_transformed = tokened.transform(df)
+tokened_transformed.show()
+
+# Remove stop words
+remover = StopWordsRemover(inputCol="words", outputCol="filtered")
+removed_frame = remover.transform(tokened_transformed)
+removed_frame.show(truncate=False)
+
+# Run the hashing term frequency
+hashing = HashingTF(inputCol="filtered", outputCol="hashedValues", numFeatures=pow(2,18))
+
+# Transform into DF
+hashed_df = hashing.transform(removed_frame)
+hashed_df.show(truncate=False)
+
+# Fit the IDF on the date set
+idf = IDF(inputCol = "hashedValues", outputCol="features")
+idfModel = idf.fit(hashed_df)
+rescaledData = idfModel.transform(hashed_df)
+
+# Display the DataFrame
+rescaledData.select("words","features").show(truncate=False)
+
+
+----------------------------------------
+16.6.4 Pipeline Setup to Run the Model
+
+## Set Up the Pipeline
+
+# Create new notebook
+
+import os
+# Find the latest version of spark 3.0  from http://www-us.apache.org/dist/spark/ and enter as the spark version
+# For example:
+# spark_version = 'spark-3.0.2'
+spark_version = 'spark-3.1.2'
+os.environ['SPARK_VERSION']=spark_version
+
+# Install Spark and Java
+!apt-get update
+!apt-get install openjdk-11-jdk-headless -qq > /dev/null
+!wget -q http://www-us.apache.org/dist/spark/$SPARK_VERSION/$SPARK_VERSION-bin-hadoop2.7.tgz
+!tar xf $SPARK_VERSION-bin-hadoop2.7.tgz
+!pip install -q findspark
+
+# Set Environment Variables
+import os
+os.environ["JAVA_HOME"] = "/usr/lib/jvm/java-11-openjdk-amd64"
+os.environ["SPARK_HOME"] = f"/content/{spark_version}-bin-hadoop2.7"
+
+# Start a SparkSession
+import findspark
+findspark.init()
+
+# Read in data from S3 Buckets
+from pyspark import SparkFiles
+url ="https://s3.amazonaws.com/dataviz-curriculum/day_2/yelp_reviews.csv"
+spark.sparkContext.addFile(url)
+df = spark.read.csv(SparkFiles.get("yelp_reviews.csv"), sep=",", header=True)
+
+# Show DataFrame
+df.show()
+
+# Import functions
+from pyspark.ml.feature import Tokenizer, StopWordsRemover, HashingTF, IDF, StringIndexer
+
+# Create a new column that uses the length function to create a future feature with the length of each row. 
+from pyspark.sql.functions import length
+# Create a length column to be used as a future feature
+data_df = df.withColumn('length', length(df['text']))
+data_df.show()
+
+
+# Create all the transformations to be applied in our pipeline
+# Create all the features to the data set
+pos_neg_to_num = StringIndexer(inputCol='class',outputCol='label')
+tokenizer = Tokenizer(inputCol="text", outputCol="token_text")
+stopremove = StopWordsRemover(inputCol='token_text',outputCol='stop_tokens')
+hashingTF = HashingTF(inputCol="stop_tokens", outputCol='hash_token')
+idf = IDF(inputCol='hash_token', outputCol='idf_token')
+
+# Create a feature vector containing the output from the IDFModel (the last stage in the pipeline) and the length
+from pyspark.ml.feature import VectorAssembler
+from pyspark.ml.linalg import Vector
+
+# Create feature vectors
+clean_up = VectorAssembler(inputCols=['idf_token', 'length'], outputCol='features')
+
+# Create and run a data processing Pipeline
+from pyspark.ml import Pipeline
+data_prep_pipeline = Pipeline(stages=[pos_neg_to_num, tokenizer, stopremove, hashingTF, idf, clean_up])
+
+
+----------------------
+16.6.5 Run the Model
+
+## Run the Model
+
+# Fit and transform the pipeline
+cleaner = data_prep_pipeline.fit(data_df)
+cleaned = cleaner.transform(data_df)
+
+# Show label and resulting features
+cleaned.select(['label','features']).show()
+
+# Training Data 
+# Is the data that will be passed to our NLP model that will train our model to predict results
+
+# Testing Data 
+# Is used to test our predictions. We can do this with the randomSplit method, which takes in a list of the percent of data we want split into each group.
+
+# Break data down into a training set and a testing set
+training, testing = cleaned.randomSplit([0.7, 0.3], 21)
+
+# Naive Bayes
+# A group of classifier algorithms based on Bayes' theorem. Bayes theorem provides a way to determine the probability of an event based on new conditions or information that might be related to the event.
+
+# Import NaiveBayes
+from pyspark.ml.classification import NaiveBayes
+
+# Create a Naive Bayes model and fit training data
+nb = NaiveBayes()
+predictor = nb.fit(training)
+
+# Transform the model with the testing data
+# This prediction column will indicate with a 1.0 if the model thinks this review is negative and 0.0 if it thinks it's positive
+test_results = predictor.transform(testing)
+test_results.show(5)
+
+# BinaryClassificationEvaluator
+# Will display how accurate our model is in determining if a review with be positive or negative based solely on the text within a review 
+
+# The BinaryClassificationEvaluator uses two arguments, labelCol and rawPredictionCol.
+
+# labelCol
+# Takes the labels which were the result of using StringIndexer to convert our positive and negative strings to integers. 
+
+# rawPredictionCol 
+# Takes in numerical predictions from the output of running the Naive Bayes model
+
+# The performance of a model can be measured based on the difference between its predicted values and actual values.
+
+# Import The BinaryClassificationEvaluator
+from pyspark.ml.evaluation import BinaryClassificationEvaluator
+
+acc_eval = BinaryClassificationEvaluator(labelCol='label', rawPredictionCol='prediction')
+acc = acc_eval.evaluate(test_results)
+print("Accuracy of model at predicting review was: %f" % acc)
+
+# Accuracy of model at predicting review was: 0.700298
+
+
+-----------------------------------------------------
+16.7.4 Test with Create, Read, Update and Delete
+
+# From pgAdmin, create a new database within our RDS instances called "medical".
+
+## Create 
+# The first function of CRUD is creating data. We'll make tables and insert data into them
+
+# Run the following query
+CREATE TABLE doctors (
+ id INT PRIMARY KEY NOT NULL,
+ speciality TEXT,
+ taking_patients BOOLEAN
+);
+CREATE TABLE patients (
+ id INT NOT NULL,
+ doctor_id INT NOT NULL,
+ health_status TEXT,
+ PRIMARY KEY (id, doctor_id),
+ FOREIGN KEY (doctor_id) REFERENCES doctors (id)
+);
+
+INSERT INTO doctors(id, speciality, taking_patients)
+VALUES
+(1, 'cardiology', TRUE),
+(2, 'orthopedics', FALSE),
+(3, 'pediatrics', TRUE);
+INSERT INTO patients (id, doctor_id, health_status)
+VALUES
+(1, 2, 'healthy'),
+(2, 3, 'sick'),
+(3, 2, 'sick'),
+(4, 1, 'healthy'),
+(5, 1, 'sick');
+
+## Read
+# The second function is reading our data. We'll run our SELECT statements for the data we want to retrieve from our tables.
+
+# Run the following query to confirm our data has been successfully inserted
+-- Read tables
+SELECT * FROM doctors;
+SELECT * FROM patients;
+
+## Update
+# The third function is updating data that is currently stored. 
+
+# Run the following query to update our data
+-- Update rows
+UPDATE doctors
+SET taking_patients = FALSE
+WHERE id = 1;
+UPDATE patients
+SET health_status = 'healthy'
+WHERE id = 1;
+
+## Delete
+# The final function is deleting data. 
+
+# Run the following query to delete data.
+-- Delete row
+DELETE FROM patients
+WHERE id = 1;
+
+16.8.3 PySpak and S3 Stored Data
+# Using PySpark is how we've been reading in our data into Google Colab so far. The format for reading in from S3 is the S3 link, followed by your bucket name, folder by each folder, and then the filename, as follows:
+
+https://<bucket-name.s3-<region>.amazonaws.com/<folder-name>/<file-name>
+https://<databootcamo-cynmmarin-bucket.s3-us-west-1.amazonaws.com/<folder-name>/<file-name>
+
+
+-----------------------
+16.9.1 PySpark ETL
+
+# Create an S3 bucket on AWS, and then load the files into the bucket:
+user_data.csv
+user_payment.csv
+
+# Make the bucket and files public.
+
+# Create a new database in pgAdmin called "my_data_class_db."
+
+# Running the following schema in pgAdmin for our RDS:
+-- Create Active User Table
+
+CREATE TABLE active_user (
+ id INT PRIMARY KEY NOT NULL,
+ first_name TEXT,
+ last_name TEXT,
+ username TEXT
+);
+
+CREATE TABLE billing_info (
+ billing_id INT PRIMARY KEY NOT NULL,
+ street_address TEXT,
+ state TEXT,
+ username TEXT
+);
+
+CREATE TABLE payment_info (
+ billing_id INT PRIMARY KEY NOT NULL,
+ cc_encrypted TEXT
+);
+
+# Create a new notebook on GoogleCollab
+
+# Install Spark
+import os
+# Find the latest version of spark 3.0  from http://www-us.apache.org/dist/spark/ and enter as the spark version
+# For example:
+# spark_version = 'spark-3.0.2'
+spark_version = 'spark-3.1.2'
+os.environ['SPARK_VERSION']=spark_version
+
+# Install Spark and Java
+!apt-get update
+!apt-get install openjdk-11-jdk-headless -qq > /dev/null
+!wget -q http://www-us.apache.org/dist/spark/$SPARK_VERSION/$SPARK_VERSION-bin-hadoop2.7.tgz
+!tar xf $SPARK_VERSION-bin-hadoop2.7.tgz
+!pip install -q findspark
+
+# Set Environment Variables
+import os
+os.environ["JAVA_HOME"] = "/usr/lib/jvm/java-11-openjdk-amd64"
+os.environ["SPARK_HOME"] = f"/content/{spark_version}-bin-hadoop2.7"
+
+# Start a SparkSession
+import findspark
+findspark.init()
+
+# Enter the following code to download a Postgres driver that will allow Spark to interact with Postgres
+!wget https://jdbc.postgresql.org/download/postgresql-42.2.16.jar
+
+# Start a Spark session with an additional option that adds the driver to Spark
+from pyspark.sql import SparkSession
+spark = SparkSession.builder.appName("CloudETL").config("spark.driver.extraClassPath","/content/postgresql-42.2.16.jar").getOrCreate()
+
+## Extract
+# Connect to data storage, then extract that data into a DataFrame
+# Importing SparkFiles from PySpark into our notebook
+
+# Read in data from S3 Buckets
+from pyspark import SparkFiles
+url ="https://module-16-bigdata.s3.amazonaws.com/user_data.csv"
+spark.sparkContext.addFile(url)
+user_data_df = spark.read.csv(SparkFiles.get("user_data.csv"), sep=",", header=True, inferSchema=True)
+
+# Show the first 10 runs and confirm our data extraction
+# Show DataFrame
+user_data_df.show()
+
+# Repeat a similar process to load in the other data
+url ="https://module-16-bigdata.s3.amazonaws.com/user_payment.csv"
+spark.sparkContext.addFile(url)
+user_payment_df = spark.read.csv(SparkFiles.get("user_payment.csv"), sep=",", header=True, inferSchema=True)
+
+# Show DataFrame
+user_payment_df.show()
+
+# Repeat a similar process to load in the other data
+url ="https://module-16-bigdata.s3.amazonaws.com/user_payment.csv"
+spark.sparkContext.addFile(url)
+user_payment_df = spark.read.csv(SparkFiles.get("user_payment.csv"), sep=",", header=True, inferSchema=True)
+
+# Show DataFrame
+user_payment_df.show()
+
+## Transform
+
+# First, join the two tables
+joined_df = user_data_df.join(user_payment_df, on="username", how="inner")
+joined_df.show
+
+# Next, drop any rows with null or "not a number" (NaN) values
+dropna_df = joined_df.dropna()
+dropna_df.show()
+
+# Filter for active users
+# Load in a sql function to use columns
+from pyspark.sql.functions import col
+
+# Filter for only columns with active users
+cleaned_df = dropna_df.filter(col("active_user") == True)
+cleaned_df.show()
+
+# Next, select columns to create three different DataFrames that match what is in the AWS RDS database. Create a DataFrame to match the active_user table
+
+# Next, create a DataFrame to match the active user
+# Create user dataframe to match active user table
+clean_user_df = cleaned_df.select(["id","first_name","last_name","username"])
+clean_user_df.show()
+
+# Next, create a DataFrame to match the billing_info table
+# Create user dataframe to match billing_info table
+clean_billing_df = cleaned_df.select(["billing_id","street_address","state","username"])
+clean_billing_df.show()
+
+# Finally, create a DataFrame to match the payment_info table
+clean_payment_df = cleaned_df.select(["billing_id","cc_encrypted"])
+clean_payment_df.show()
+
+## Load
+# The final step is to get our transformed raw data into our database. PySpark can easily connect to a database to load the DataFrames into the table
+
+# First, we'll do some configuration to allow the connection with the following code
+# Store environmental variable
+from getpass import getpass
+password = getpass('Enter database password')
+
+# Configure settings for RDS
+mode = "append"
+jdbc_url="jdbc:postgresql://dataviz.cwu7uzh0yror.us-west-1.rds.amazonaws.com:5432/postgres"
+config = {"user":"postgres",
+          "password": password,
+          "driver":"org.postgresql.Driver"}
+
+# Write DataFrame to active_user table in RDS
+clean_user_df.write.jdbc(url=jdbc_url, table='active_user', mode=mode, properties=config)
+
+# Write dataframe to billing_info table in RDS
+clean_billing_df.write.jdbc(url=jdbc_url, table='billing_info', mode=mode, properties=config)
+
+# Write dataframe to payment_info table in RDS
+clean_payment_df.write.jdbc(url=jdbc_url, table='payment_info', mode=mode, properties=config)
+
+# Double-checking our work and running queries in pgAdmin on our database to confirm that the load did exactly what we wanted
+-- Query database to check successful upload
+SELECT * FROM active_user;
+SELECT * FROM billing_info;
+SELECT * FROM payment_info;
+
+
+
+
+
